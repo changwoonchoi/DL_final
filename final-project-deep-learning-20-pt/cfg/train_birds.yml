@@ -1,0 +1,63 @@
+#################################################
+# DO NOT CHANGE 
+CONFIG_NAME: 'image-manipulation'
+
+DATASET_NAME: 'birds'
+EMBEDDING_TYPE: 'cnn-rnn'
+DATA_DIR: 'data/birds'
+
+IMAGE_SIZE: 128
+CUDA: True
+
+CHECKPOINT_DIR: './output/checkpoint'
+LOG_DIR: './output/logs'
+#################################################
+
+
+GPU_ID: '0'
+WORKERS: 4
+
+BATCH_SIZE: 32
+
+
+#################################################
+# DO NOT CHANGE 
+TRAIN:
+    FLAG: True
+#################################################
+    CNN_ENCODER: 'image_encoder.pth'
+    RNN_ENCODER: 'text_encoder.pth'
+    GENERATOR: 'netG.pth'
+    
+    MAX_EPOCH: 600
+    SNAPSHOT_INTERVAL: 50
+    DISCRIMINATOR_LR: 0.0002
+    GENERATOR_LR: 0.0002
+    
+#################################################
+# DO NOT CHANGE 
+TEST:
+    B_EXAMPLE: False
+    GENERATED_TEST_IMAGES: './evaluation/generated_images'
+    ORIG_TEST_IMAGES: './evaluation/orig_generated_images'
+#################################################
+
+
+RNN:
+    TYPE: 'LSTM'
+    
+GAN:
+    DF_DIM: 64
+    GF_DIM: 32
+    Z_DIM: 100
+    CONDITION_DIM: 100
+    R_NUM: 2
+    
+    
+#################################################
+# DO NOT CHANGE
+TEXT:
+    CAPTIONS_PER_IMAGE: 10
+#################################################
+    EMBEDDING_DIM: 256
+    WORDS_NUM: 25

@@ -127,3 +127,9 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+CUB_200_2011.tgz
+final-project-deep-learning-20-pt.tar
+Final_project_DL_final.pptx
+final-project-deep-learning-20-pt/data/*
+.idea/*
