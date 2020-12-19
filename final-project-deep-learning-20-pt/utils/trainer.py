@@ -5,6 +5,8 @@ import torch.optim as optim
 import torchvision.utils as vutils
 from miscc.config import cfg
 from PIL import Image
+from torchvision import models
+import torch.utils.model_zoo as model_zoo
 
 import numpy as np
 import os
@@ -15,7 +17,30 @@ import time
 from utils.model import RNN_ENCODER, CNN_ENCODER, GENERATOR, DISCRIMINATOR
 #################################################
 
-                
+
+class VGGNet(nn.Module):
+    def __init__(self):
+        """Select conv1_1 ~ conv5_1 activation maps."""
+        super(VGGNet, self).__init__()
+        self.select = ['8']  # relu2_2
+        model = models.vgg16()
+        url = 'https://download.pytorch.org/models/vgg16-397923af.pth'
+        model.load_state_dict(model_zoo.load_url(url))
+        for param in model.parameters():
+            param.resquires_grad = False
+        print('Load pretrained model from ', url)
+        self.vgg = model.features
+
+    def forward(self, x):
+        """Extract multiple convolutional feature maps."""
+        features = []
+        for name, layer in self.vgg._modules.items():
+            x = layer(x)
+            if name in self.select:
+                features.append(x)
+        return features
+
+
 class condGANTrainer(object):
     def __init__(self, output_dir, train_dataloader, test_dataloader, n_words, dataloader_for_wrong_samples=None,
                  log=None, writer=None):
@@ -32,7 +57,6 @@ class condGANTrainer(object):
 
         self.log = log if log is not None else print
         self.writer = writer
-
     
     def prepare_data(self, data):
         """
@@ -76,7 +100,20 @@ class condGANTrainer(object):
             sorted_cap_lens = Variable(sorted_cap_lens)
 
         return [real_imgs, captions, sorted_cap_lens, class_ids, keys, sentence_idx]
-    
+
+    def build_model(self):
+        # build VGGNet
+        VGG = VGGNet()
+        for p in VGG.parameters():
+            p.requires_grad = False
+        print("Load VGG")
+        VGG.eval()
+        # build text encoder, image encoder
+        image_encoder = CNN_ENCODER(cfg.TEXT.EMBEDDING_DIM)
+        # build generator and discriminator
+        return
+
+
     def train(self):
         """
         e.g., for epoch in range(cfg.TRAIN.MAX_EPOCH):

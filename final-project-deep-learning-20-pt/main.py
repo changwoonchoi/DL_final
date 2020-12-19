@@ -19,7 +19,7 @@ from utils.trainer import condGANTrainer as trainer
 
 # Set a config file as 'train_birds.yml' in training, as 'eval_birds.yml' for evaluation
 parser = argparse.ArgumentParser(description='xxx')
-parser.add_argument('--config',  type=str, default='cfg/train_birds.yml')
+parser.add_argument('--config', type=str, default='cfg/train_birds.yml')
 args = parser.parse_args()
 cfg_from_file(args.config)
 

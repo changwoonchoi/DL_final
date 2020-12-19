@@ -92,6 +92,7 @@ __C.TEXT.CAPTIONS_PER_IMAGE = 0
 __C.TEXT.EMBEDDING_DIM = 0
 __C.TEXT.WORDS_NUM = 0
 
+
 def _merge_a_into_b(a, b):
     """
     Merge config dictionary a into config dictionary b, clobbering theoptions in b whenever they are also specified in a.

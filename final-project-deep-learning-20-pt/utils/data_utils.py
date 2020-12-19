@@ -43,6 +43,7 @@ def get_imgs(img_path, imsize, bbox=None,
 
     return ret
 
+
 class CUBDataset():
     def __init__(self, data_dir, transform, split='train', imsize=128, eval_mode=False, for_wrong=False):
         # evaluate MP metric with 'eval_mode' (return both original image and manipulated image from evaluation folder)
@@ -123,7 +124,7 @@ class CUBDataset():
         filepath = os.path.join(data_dir, split, 'filenames.pickle')
         with open(filepath, 'rb') as f:
             filenames = pickle.load(f, encoding='latin1')
-        #print(f'Load filenames:\t{filepath}')
+        # print(f'Load filenames:\t{filepath}')
         filenames = np.asarray(filenames)
         return filenames
     
@@ -321,18 +322,17 @@ class CUBDataset():
             mis_match_captions[i, :] = mis_match_captions_t[sorted_cap_indices[i]]
 
         return mis_match_captions.type(torch.LongTensor), sorted_cap_lens.type(torch.LongTensor)
-    
 
     def __getitem__(self, index):
         if self.split is 'train':
-            key = self.filenames[index] # 002.Laysan_Albatross/Laysan_Albatross_0002_1027
+            key = self.filenames[index]  # 002.Laysan_Albatross/Laysan_Albatross_0002_1027
             cls_id = self.class_id[index]
-            bbox = self.bbox[key] if self.bbox is not None else None # bounding box
+            bbox = self.bbox[key] if self.bbox is not None else None  # bounding box
             data_dir = '%s/CUB_200_2011' % self.data_dir
 
             img_name = '%s/images/%s.jpg' % (data_dir, key)
             imgs = get_imgs(img_name, self.imsize, bbox, self.transform, normalize=self.norm)
-            sent_ix = random.randint(0, cfg.TEXT.CAPTIONS_PER_IMAGE-1) # caption index
+            sent_ix = random.randint(0, cfg.TEXT.CAPTIONS_PER_IMAGE - 1)  # caption index
             new_sent_ix = index * cfg.TEXT.CAPTIONS_PER_IMAGE + sent_ix
             caps, cap_len = self.get_caption(new_sent_ix)
 
@@ -345,9 +345,9 @@ class CUBDataset():
             #################################################
 
         else:
-            key = self.filenames[index//cfg.TEXT.CAPTIONS_PER_IMAGE] # 002.Laysan_Albatross/Laysan_Albatross_0002_1027
+            key = self.filenames[index//cfg.TEXT.CAPTIONS_PER_IMAGE]  # 002.Laysan_Albatross/Laysan_Albatross_0002_1027
             cls_id = self.class_id[index//cfg.TEXT.CAPTIONS_PER_IMAGE]
-            sent_ix = index % cfg.TEXT.CAPTIONS_PER_IMAGE # caption index
+            sent_ix = index % cfg.TEXT.CAPTIONS_PER_IMAGE  # caption index
             bbox = self.bbox[key] if self.bbox is not None else None  # bounding box
             data_dir = '%s/CUB_200_2011' % self.data_dir
 
@@ -369,12 +369,11 @@ class CUBDataset():
 
         return data
 
-
     def __len__(self):
-        '''
+        """
         In training, random index will be selected within # of filenames (e.g., 8855)
         In evaluation, random index will be selected within # of captions (e.g., 29330 (2933*10) (since # of caption per image is 10))
-        '''
+        """
         if self.split is 'train':
             return len(self.filenames)
         else:
