@@ -346,7 +346,7 @@ class CUBDataset():
             sent_ix = random.randint(0, cfg.TEXT.CAPTIONS_PER_IMAGE - 1)  # caption index
             new_sent_ix = index * cfg.TEXT.CAPTIONS_PER_IMAGE + sent_ix
             caps, cap_len = self.get_caption(new_sent_ix)
-            wrong_idx = random.randint(0, len(self.filenames))
+            wrong_idx = random.randint(0, len(self.filenames) - 1)
             wrong_new_sent_ix = wrong_idx * self.embeddings_num + sent_ix
             wrong_caps, wrong_cap_len = self.get_caption(wrong_new_sent_ix)
             wrong_cls_id = self.class_id[wrong_idx]

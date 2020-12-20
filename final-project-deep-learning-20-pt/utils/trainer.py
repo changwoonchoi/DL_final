@@ -16,7 +16,7 @@ import os
 import time
 
 #################################################
-# DO NOT CHANGE 
+# DO NOT CHANGE
 from utils.model import RNN_ENCODER, CNN_ENCODER, GENERATOR, DISCRIMINATOR
 #################################################
 
@@ -66,12 +66,12 @@ class condGANTrainer(object):
         self.max_epoch = cfg.TRAIN.MAX_EPOCH
         self.snapshot_interval = cfg.TRAIN.SNAPSHOT_INTERVAL
         self.num_batches = len(self.train_dataloader)
-        
+
         self.n_words = n_words  # size of the dictionary
         self.ixtoword = ixtoword
         self.log = log if log is not None else print
         self.writer = writer
-    
+
     def prepare_data(self, data):
         """
         Prepares data given by dataloader
@@ -93,7 +93,7 @@ class condGANTrainer(object):
         sentence_idx = data['sent_ix']
 
         # sort data by the length in a decreasing order
-        # the reason of sorting data can be found in https://simonjisu.github.io/nlp/2018/07/05/packedsequence.html 
+        # the reason of sorting data can be found in https://simonjisu.github.io/nlp/2018/07/05/packedsequence.html
         sorted_cap_lens, sorted_cap_indices = torch.sort(captions_lens, 0, True)
         real_imgs = []
         for i in range(len(imgs)):
@@ -320,13 +320,13 @@ class condGANTrainer(object):
                                           cap_lens, epoch, cnn_code, region_features, imgs, name='average')
                     load_params(netG, backup_para)
 
-                end_t = time.time()
-                print('[%d/%d][%d] Loss_D: %.2f Loss_G: %.2f Time: %.2fs'
-                      % (epoch, self.max_epoch, self.num_batches, errD_total, errG_total, end_t - start_t))
+            end_t = time.time()
+            print('[%d/%d][%d] Loss_D: %.2f Loss_G: %.2f Time: %.2fs'
+                  % (epoch, self.max_epoch, self.num_batches, errD_total, errG_total, end_t - start_t))
 
-                if epoch % cfg.TRAIN.SNAPSHOT_INTERVAL == 0:
-                    self.save_model(netG, avg_param_G, netsD, epoch)
-            self.save_model(netG, avg_param_G, netsD, self.max_epoch)
+            if epoch % cfg.TRAIN.SNAPSHOT_INTERVAL == 0:
+                self.save_model(netG, avg_param_G, netsD, epoch)
+        self.save_model(netG, avg_param_G, netsD, self.max_epoch)
 
     def generate_data_for_eval(self):
         # load the text encoder model to generate images for evaluation
@@ -426,53 +426,24 @@ class condGANTrainer(object):
                          gen_iterations, cnn_code, region_features, real_imgs, name='current'):
         fake_imgs, attention_maps, _, _, _, _ = netG(noise, sent_emb, words_embs, mask,
                                                      cnn_code, region_features)
-        for i in range(len(attention_maps)):
-            if len(fake_imgs) > 1:
-                img = fake_imgs[i + 1].detach().cpu()
-                lr_img = fake_imgs[i].detach().cpu()
-            else:
-                img = fake_imgs[0].detach().cpu()
-                lr_img = None
-            attn_maps = attention_maps[i]
-            att_sze = attn_maps.size(2)
-            img_set, _ = \
-                build_super_images(img, captions, self.ixtoword,
-                                   attn_maps, att_sze, lr_imgs=lr_img)
-            if img_set is not None:
-                im = Image.fromarray(img_set)
-                fullpath = '%s/G_%s_%d_%d.png' \
-                           % (self.image_dir, name, gen_iterations, i)
-                im.save(fullpath)
 
-        i = -1
-        img = fake_imgs[i].detach()
-        region_features, _ = image_encoder(img)
-        att_sze = region_features.size(2)
-        _, _, att_maps = words_loss(region_features.detach(),
-                                    words_embs.detach(),
-                                    None, cap_lens,
-                                    None, self.batch_size)
-        img_set, _ = \
-            build_super_images(fake_imgs[i].detach().cpu(),
-                               captions, self.ixtoword, att_maps, att_sze)
-        if img_set is not None:
-            im = Image.fromarray(img_set)
-            fullpath = '%s/D_%s_%d.png' \
-                       % (self.image_dir, name, gen_iterations)
-            im.save(fullpath)
+        for k in range(4):
+            real_im = real_imgs[-1][k].data.cpu().numpy()
+            real_im = (real_im + 1.0) * 127.5
+            real_im = real_im.astype(np.uint8)
+            real_im = np.transpose(real_im, (1, 2, 0))
+            real_im = Image.fromarray(real_im)
+            real_save_path = '%s/R_%s_%d_%d.png' % (self.image_dir, name, gen_iterations, k)
+            real_im.save(real_save_path)
 
-        '''
-        # save the real images 
-        for k in range(8):
-            im = real_imgs[-1][k].data.cpu().numpy()
-            im = (im + 1.0) * 127.5
-            im = im.astype(np.uint8)
-            im = np.transpose(im, (1, 2, 0))
-            im = Image.fromarray(im)
-            fullpath = '%s/R_%s_%d_%d.png'\
-                    % (self.image_dir, name, gen_iterations, k)
-            im.save(fullpath)
-        '''
+            fake_im = fake_imgs[-1][k].data.cpu().numpy()
+            fake_im = (fake_im + 1.0) * 127.5
+            fake_im = fake_im.astype(np.uint8)
+            fake_im = np.transpose(fake_im, (1, 2, 0))
+            fake_im = Image.fromarray(fake_im)
+            fake_save_path = '%s/F_%s_%d_%d.png' % (self.image_dir, name, gen_iterations, k)
+            fake_im.save(fake_save_path)
+
 
     def save_model(self, netG, avg_param_G, netsD, epoch):
         """
