@@ -72,7 +72,10 @@ train_dataloader = torch.utils.data.DataLoader(train_dataset, batch_size=cfg.BAT
 test_dataloader = torch.utils.data.DataLoader(test_dataset, batch_size=cfg.BATCH_SIZE,
         drop_last=False, shuffle=False, num_workers=int(cfg.WORKERS))
 
-algo = trainer(output_dir, train_dataloader, test_dataloader, train_dataset.n_words, log=log, writer=writer)
+algo = trainer(output_dir, train_dataloader, test_dataloader, train_dataset.n_words, ixtoword=train_dataset.ixtoword,
+               dataloader_for_wrong_samples=None, log=log, writer=writer)
+# def __init__(self, output_dir, train_dataloader, test_dataloader, n_words, ixtoword, dataloader_for_wrong_samples=None,
+#                  log=None, writer=None):
 
 if cfg.TRAIN.FLAG:
     algo.train()

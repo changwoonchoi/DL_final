@@ -20,15 +20,15 @@ import torch.nn.functional as F
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 
 from miscc.config import cfg
-from attention import SpatialAttentionGeneral as SPATIAL_ATT
-from attention import ChannelAttention as CHANNEL_ATT
-from attention import DCMChannelAttention as DCM_CHANNEL_ATT
+from utils.attention import SpatialAttentionGeneral as SPATIAL_ATT
+from utils.attention import ChannelAttention as CHANNEL_ATT
+from utils.attention import DCMChannelAttention as DCM_CHANNEL_ATT
 
 #######################################################################################################
 # DO NOT CHANGE 
 class RNN_ENCODER(nn.Module):
 #######################################################################################################
-    def __init__(self, ntoken, ninput=256, drop_prob=0.5, nhidden=128, nlayers=1, bidirectional=True):
+    def __init__(self, ntoken, ninput=300, drop_prob=0.5, nhidden=128, nlayers=1, bidirectional=True):
         super(RNN_ENCODER, self).__init__()
         self.n_steps = cfg.TEXT.WORDS_NUM
         self.ntoken = ntoken        # size of the dictionary
@@ -78,7 +78,7 @@ class RNN_ENCODER(nn.Module):
         '''
         emb = self.drop(self.encoder(captions))
         cap_lens = cap_lens.data.tolist()
-        emb = pack_padded_sequence()
+        emb = pack_padded_sequence(emb, cap_lens, batch_first=True)
         output, hidden = self.rnn(emb, hidden)
         output = pad_packed_sequence(output, batch_first=True)[0]
         words_emb = output.transpose(1, 2)
@@ -100,7 +100,7 @@ class CNN_ENCODER(nn.Module):
         else:
             self.nef = 256  # define a uniform ranker
 
-        model = models.inception_v3()
+        model = models.inception_v3(init_weights=False)
         url = 'https://download.pytorch.org/models/inception_v3_google-1a9a5a14.pth'
         model.load_state_dict(model_zoo.load_url(url))
         for param in model.parameters():
@@ -226,7 +226,7 @@ class INIT_STAGE_G(nn.Module):
 
     def forward(self, z_code, c_code, cnn_code):
         c_z_code = torch.cat((c_code, z_code), 1)
-        if not cfg.TRAIN_FLAG and not cfg.B_VALIDATION:
+        if not cfg.TRAIN.FLAG and not cfg.B_VALIDATION:
             cnn_code = cnn_code.repeat(c_z_code.size(0), 1)
 
         c_z_cnn_code = torch.cat((c_z_code, cnn_code), 1)
@@ -352,7 +352,7 @@ class GENERATOR(nn.Module):
             fake_imgs.append(fake_img3)
             if att2 is not None:
                 att_maps.append(att2)
-        return fake_imgs, att_maps, mu, logvar, h_code3, c_code
+        return fake_imgs, att_maps, mu, logvar, h_code2, c_code
 
 
 #######################################################################################################
@@ -375,7 +375,7 @@ class DISCRIMINATOR(nn.Module):
             self.img_code_s32 = downBlock(ndf * 8, ndf * 16)
             self.img_code_s32_1 = Block3x3_leakRelu(ndf * 16, ndf * 8)
             if b_jcu:
-                self.UNCOND_DNET = D_GET_LOGITS(ndf, nef, b_condition=False)
+                self.UNCOND_DNET = D_GET_LOGITS(ndf, nef, bcondition=False)
             else:
                 self.UNCOND_DNET = None
             self.COND_DNET = D_GET_LOGITS(ndf, nef, bcondition=True)
@@ -439,6 +439,7 @@ class CA_NET(nn.Module):
         c_code = self.reparametrize(mu, logvar)
         return c_code, mu, logvar
 
+
 # Affine Combination Module from ManiGAN
 class ACM(nn.Module):
     def __init__(self, channel_num):
@@ -452,6 +453,7 @@ class ACM(nn.Module):
         out_code_weight = self.conv_weight(out_code)
         out_code_bias = self.conv_bias(out_code)
         return x * out_code_weight + out_code_bias
+
 
 class GLU(nn.Module):
     def __init__(self):

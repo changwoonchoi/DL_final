@@ -13,10 +13,11 @@ from collections import defaultdict
 
 import torch
 import torchvision.transforms as transforms
+import torchvision.transforms.functional as F
+from torch.autograd import Variable
 
     
-def get_imgs(img_path, imsize, bbox=None,
-             transform=None, normalize=None):
+def get_imgs(img_path, imsize, flip, bbox=None, transform=None, normalize=None):
     img = Image.open(img_path).convert('RGB')
     width, height = img.size
     if bbox is not None:
@@ -29,11 +30,19 @@ def get_imgs(img_path, imsize, bbox=None,
         x2 = np.minimum(width, center_x + r)
         img = img.crop([x1, y1, x2, y2])
 
+    if flip:
+        img = F.hflip(img)
     if transform is not None:
         img = transform(img)
 
-    ret = [normalize(img)]
-    
+    ret = []
+    for i in range(cfg.TREE.BRANCH_NUM):
+        if i < (cfg.TREE.BRANCH_NUM - 1):
+            re_img = transforms.Scale([imsize[i], imsize[i]])(img)
+        else:
+            re_img = img
+        ret.append(normalize(re_img))
+
     #################################################
     # TODO
     # this part can be different, depending on which method is used
@@ -47,9 +56,9 @@ def get_imgs(img_path, imsize, bbox=None,
 class CUBDataset():
     def __init__(self, data_dir, transform, split='train', imsize=128, eval_mode=False, for_wrong=False):
         # evaluate MP metric with 'eval_mode' (return both original image and manipulated image from evaluation folder)
-        # evaluate R-precision metric with 'for_wrong' (load caption from 'test_correct')
+        # evaluate R-precision metric with '`for_wrong`' (load caption from 'test_correct')
 
-        self.imsize = imsize
+        # self.imsize = imsize
         self.split = split
         self.eval_mode = eval_mode
         self.for_wrong = for_wrong
@@ -58,13 +67,13 @@ class CUBDataset():
             transforms.ToTensor(),
             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
         self.transform = transform
-        
+        self.embeddings_num = cfg.TEXT.CAPTIONS_PER_IMAGE
         self.imsize = []
         base_size = 64
         for i in range(cfg.TREE.BRANCH_NUM):
             self.imsize.append(base_size)
             base_size = base_size * 2
-        
+
         self.current_dir = os.getcwd()
         print(f'self.current_dir:\n{self.current_dir}\n')
         if self.current_dir.split('/')[-1] == 'evaluation':
@@ -81,6 +90,7 @@ class CUBDataset():
         
         self.filenames, self.captions, self.captions_ids, self.ixtoword, self.wordtoix, self.n_words = self.load_text_data(self.data_dir, split)
         self.class_id = self.load_class_id(self.split_dir)
+
             
     def load_bbox(self):
         """
@@ -329,24 +339,24 @@ class CUBDataset():
             cls_id = self.class_id[index]
             bbox = self.bbox[key] if self.bbox is not None else None  # bounding box
             data_dir = '%s/CUB_200_2011' % self.data_dir
-
             img_name = '%s/images/%s.jpg' % (data_dir, key)
-            imgs = get_imgs(img_name, self.imsize, bbox, self.transform, normalize=self.norm)
+
+            imgs = get_imgs(img_name, self.imsize, flip=False, bbox=bbox, transform=self.transform, normalize=self.norm)
+            # get_imgs(img_path, imsize, flip, bbox=None, transform=None, normalize=None):
             sent_ix = random.randint(0, cfg.TEXT.CAPTIONS_PER_IMAGE - 1)  # caption index
             new_sent_ix = index * cfg.TEXT.CAPTIONS_PER_IMAGE + sent_ix
             caps, cap_len = self.get_caption(new_sent_ix)
+            wrong_idx = random.randint(0, len(self.filenames))
+            wrong_new_sent_ix = wrong_idx * self.embeddings_num + sent_ix
+            wrong_caps, wrong_cap_len = self.get_caption(wrong_new_sent_ix)
+            wrong_cls_id = self.class_id[wrong_idx]
 
-            data = {'img': imgs, 'caps': caps, 'cap_len': cap_len, 'cls_id': cls_id, 'key': key, 'sent_ix': sent_ix}
-
-            #################################################
-            # TODO
-            # this part can be different, depending on which method is used
-            # data[''] = ...
-            #################################################
-
+            data = {'img': imgs, 'caps': caps, 'cap_len': cap_len, 'cls_id': cls_id, 'key': key,
+                    'wrong_caps': wrong_caps, 'wrong_cap_len': wrong_cap_len, 'wrong_cls_id': wrong_cls_id,
+                    'sent_ix': sent_ix}
         else:
-            key = self.filenames[index//cfg.TEXT.CAPTIONS_PER_IMAGE]  # 002.Laysan_Albatross/Laysan_Albatross_0002_1027
-            cls_id = self.class_id[index//cfg.TEXT.CAPTIONS_PER_IMAGE]
+            key = self.filenames[index // cfg.TEXT.CAPTIONS_PER_IMAGE]  # 002.Laysan_Albatross/Laysan_Albatross_0002_1027
+            cls_id = self.class_id[index // cfg.TEXT.CAPTIONS_PER_IMAGE]
             sent_ix = index % cfg.TEXT.CAPTIONS_PER_IMAGE  # caption index
             bbox = self.bbox[key] if self.bbox is not None else None  # bounding box
             data_dir = '%s/CUB_200_2011' % self.data_dir
@@ -360,7 +370,8 @@ class CUBDataset():
 
             caps, cap_len = self.get_caption(index)
 
-            data = {'img': imgs, 'caps': caps, 'cap_len': cap_len, 'cls_id': cls_id, 'key': key, 'sent_ix': sent_ix, 'cap_ix': index}
+            data = {'img': imgs, 'caps': caps, 'cap_len': cap_len, 'cls_id': cls_id, 'key': key, 'sent_ix': sent_ix,
+                    'cap_ix': index}
 
             if self.eval_mode:
                 gen_img_name = os.path.join(self.current_dir, cfg.TEST.GENERATED_TEST_IMAGES, '{}_{}.png'.format(key, sent_ix))
@@ -378,3 +389,46 @@ class CUBDataset():
             return len(self.filenames)
         else:
             return len(self.captions)
+
+
+def prepare_data(data):
+    imgs, captions, captions_lens, class_ids, keys, wrong_caps, wrong_caps_len, wrong_cls_id = data
+
+    # sort data by the length in a decreasing order
+    sorted_cap_lens, sorted_cap_indices = torch.sort(captions_lens, 0, True)
+
+    real_imgs = []
+    for i in range(len(imgs)):
+        imgs[i] = imgs[i][sorted_cap_indices]
+        if cfg.CUDA:
+            real_imgs.append(Variable(imgs[i]).cuda())
+        else:
+            real_imgs.append(Variable(imgs[i]))
+
+    captions = captions[sorted_cap_indices].squeeze()
+    class_ids = class_ids[sorted_cap_indices].numpy()
+    keys = [keys[i] for i in sorted_cap_indices.numpy()]
+
+    if cfg.CUDA:
+        captions = Variable(captions).cuda()
+        sorted_cap_lens = Variable(sorted_cap_lens).cuda()
+    else:
+        captions = Variable(captions)
+        sorted_cap_lens = Variable(sorted_cap_lens)
+
+    ##
+    w_sorted_cap_lens, w_sorted_cap_indices = torch.sort(wrong_caps_len, 0, True)
+
+    wrong_caps = wrong_caps[w_sorted_cap_indices].squeeze()
+    wrong_cls_id = wrong_cls_id[w_sorted_cap_indices].numpy()
+
+    if cfg.CUDA:
+        wrong_caps = Variable(wrong_caps).cuda()
+        w_sorted_cap_lens = Variable(w_sorted_cap_lens).cuda()
+    else:
+        wrong_caps = Variable(wrong_caps)
+        w_sorted_cap_lens = Variable(w_sorted_cap_lens)
+
+    return [real_imgs, captions, sorted_cap_lens,
+            class_ids, keys, wrong_caps, w_sorted_cap_lens, wrong_cls_id]
+

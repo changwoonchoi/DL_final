@@ -13,20 +13,32 @@ CHECKPOINT_DIR: './output/checkpoint'
 LOG_DIR: './output/logs'
 #################################################
 
-
 GPU_ID: '0'
 WORKERS: 4
 
-BATCH_SIZE: 32
+BATCH_SIZE: 16
 
+TREE:
+    BRANCH_NUM: 2
 
 #################################################
 # DO NOT CHANGE 
 TRAIN:
     FLAG: True
 #################################################
-    CNN_ENCODER: 'image_encoder.pth'
-    RNN_ENCODER: 'text_encoder.pth'
+    NET_G: ''
+    NET_C: ''
+    NET_D: ''
+    B_NET_D: True
+    BATCH_SIZE: 32
+    # CNN_ENCODER: 'image_encoder.pth'
+    # RNN_ENCODER: 'text_encoder.pth'
+    NET_E: 'DAMSMencoders/bird/text_encoder.pth'
+    SMOOTH:
+        GAMMA1: 4.0
+        GAMMA2: 5.0
+        GAMMA3: 10.0
+        LAMBDA: 5.0
     GENERATOR: 'netG.pth'
     
     MAX_EPOCH: 600
