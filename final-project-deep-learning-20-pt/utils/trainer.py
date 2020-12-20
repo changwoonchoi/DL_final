@@ -58,7 +58,8 @@ class condGANTrainer(object):
             mkdir_p(self.model_dir)
             mkdir_p(self.image_dir)
 
-        torch.cuda.set_device(int(cfg.GPU_ID))
+        # torch.cuda.set_device(int(cfg.GPU_ID))
+        torch.cuda.set_device('cuda:0')
         cudnn.benchmark = True
 
         self.batch_size = cfg.BATCH_SIZE
