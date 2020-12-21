@@ -363,6 +363,8 @@ class condGANTrainer(object):
                   % (epoch, self.max_epoch, self.num_batches, errD_total, errG_total, end_t - start_t))
             self.writer.add_scalar('Loss/Discriminator', errD_total, epoch)
             self.writer.add_scalar('Loss/Generator', errG_total, epoch)
+            self.log('Discriminator Loss at epoch {}: {}'.format(epoch, errD_total))
+            self.log('Generator Loss at epoch {}: {}'.format(epoch, errG_total))
 
             if epoch % cfg.TRAIN.SNAPSHOT_INTERVAL == 0:
                 self.save_model(netG, avg_param_G, netsD, epoch)
