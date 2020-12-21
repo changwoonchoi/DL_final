@@ -13,7 +13,7 @@ CHECKPOINT_DIR: './output/checkpoint'
 LOG_DIR: './output/logs'
 #################################################
 
-GPU_ID: '1'
+GPU_ID: '0'
 WORKERS: 4
 
 BATCH_SIZE: 8
@@ -42,6 +42,7 @@ TRAIN:
     GENERATOR: 'netG.pth'
     
     MAX_EPOCH: 600
+    VIS_INTERVAL: 1
     SNAPSHOT_INTERVAL: 50
     DISCRIMINATOR_LR: 0.0002
     GENERATOR_LR: 0.0002

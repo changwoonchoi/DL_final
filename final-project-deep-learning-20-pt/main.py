@@ -16,6 +16,8 @@ from utils.log import create_logger
 from utils.data_utils import CUBDataset
 from utils.trainer import condGANTrainer as trainer
 
+import warnings
+warnings.filterwarnings('ignore')
 
 # Set a config file as 'train_birds.yml' in training, as 'eval_birds.yml' for evaluation
 parser = argparse.ArgumentParser(description='xxx')

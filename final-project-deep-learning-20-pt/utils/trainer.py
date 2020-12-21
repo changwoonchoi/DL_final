@@ -251,9 +251,9 @@ class condGANTrainer(object):
             step = 0
             # breakpoint()
             # for step, data in enumerate(self.train_dataloader):
+            vis = False
             while step < self.num_batches:
                 # 1. Prepare training data and compute text embeddings
-
                 data = data_iter.next()
                 # data = self.train_dataloader[step]
                 imgs, captions, cap_lens, class_ids, keys, wrong_caps, wrong_caps_len, wrong_cls_id, _ = \
@@ -307,6 +307,7 @@ class condGANTrainer(object):
                 G_logs += 'kl_loss: %.2f ' % kl_loss
                 errG_total.backward()
                 optimizerG.step()
+
                 for p, avg_p in zip(netG.parameters(), avg_param_G):
                     avg_p.mul_(0.999).add_(0.001, p.data)
 
@@ -316,13 +317,19 @@ class condGANTrainer(object):
                 if gen_iterations % 1000 == 0:
                     backup_para = copy_G_params(netG)
                     load_params(netG, avg_param_G)
-                    self.save_img_results(netG, fixed_noise, sent_emb, words_embs, mask, image_encoder, captions,
-                                          cap_lens, epoch, cnn_code, region_features, imgs, name='average')
+                    self.save_img_results(netG, fixed_noise, sent_emb, words_embs, mask, epoch, cnn_code,
+                                          region_features, imgs, name='average')
+                    if not vis and epoch % cfg.TRAIN.VIS_INTERVAL == 0:
+                        self.write_vis_summary(netG, fixed_noise, sent_emb, words_embs, mask, epoch, cnn_code,
+                                               region_features, self.writer)
+                        vis = True
                     load_params(netG, backup_para)
 
             end_t = time.time()
             print('[%d/%d][%d] Loss_D: %.2f Loss_G: %.2f Time: %.2fs'
                   % (epoch, self.max_epoch, self.num_batches, errD_total, errG_total, end_t - start_t))
+            self.writer.add_scalar('Loss/Discriminator', errD_total, epoch)
+            self.writer.add_scalar('Loss/Generator', errG_total, epoch)
 
             if epoch % cfg.TRAIN.SNAPSHOT_INTERVAL == 0:
                 self.save_model(netG, avg_param_G, netsD, epoch)
@@ -422,8 +429,8 @@ class condGANTrainer(object):
                 print(os.path.join(cfg.TEST.GENERATED_TEST_IMAGES, keys[j] + '_{}.png'.format(sent_idx[j])))
                 im.save(os.path.join(cfg.TEST.GENERATED_TEST_IMAGES, keys[j] + '_{}.png'.format(sent_idx[j])))
 
-    def save_img_results(self, netG, noise, sent_emb, words_embs, mask, image_encoder, captions, cap_lens,
-                         gen_iterations, cnn_code, region_features, real_imgs, name='current'):
+    def save_img_results(self, netG, noise, sent_emb, words_embs, mask, gen_iterations, cnn_code, region_features,
+                         real_imgs, name='current'):
         fake_imgs, attention_maps, _, _, _, _ = netG(noise, sent_emb, words_embs, mask,
                                                      cnn_code, region_features)
 
@@ -444,7 +451,6 @@ class condGANTrainer(object):
             fake_save_path = '%s/F_%s_%d_%d.png' % (self.image_dir, name, gen_iterations, k)
             fake_im.save(fake_save_path)
 
-
     def save_model(self, netG, avg_param_G, netsD, epoch):
         """
         Saves models
@@ -462,3 +468,14 @@ class condGANTrainer(object):
         torch.save(self.text_encoder.state_dict(), os.path.join(cfg.CHECKPOINT_DIR, cfg.TRAIN.RNN_ENCODER))
         torch.save(self.image_encoder.state_dict(), os.path.join(cfg.CHECKPOINT_DIR, cfg.TRAIN.CNN_ENCODER))
         '''
+
+    def write_vis_summary(self, netG, noise, sent_emb, words_embs, mask, epoch, cnn_code, region_features, writer):
+        fake_imgs, attention_maps, _, _, _, _ = netG(noise, sent_emb, words_embs, mask, cnn_code, region_features)
+        img_batch = np.zeros((4, 3, 128, 128))
+        for k in range(4):
+            fake_im = fake_imgs[-1][k].data.cpu().numpy()
+            fake_im = (fake_im + 1.0) / 2.0
+            # fake_im = np.transpose(fake_im, (1, 2, 0))
+            img_batch[k] = fake_im
+        writer.add_images('sample_img', img_batch, epoch)
+        writer.close()
