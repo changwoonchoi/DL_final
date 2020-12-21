@@ -10,10 +10,10 @@ from PIL import Image
 from torchvision import models
 import torch.utils.model_zoo as model_zoo
 from utils.loss import discriminator_loss, generator_loss, KL_loss, words_loss
-
 import numpy as np
 import os
 import time
+import pdb
 
 #################################################
 # DO NOT CHANGE
@@ -318,10 +318,10 @@ class condGANTrainer(object):
                     backup_para = copy_G_params(netG)
                     load_params(netG, avg_param_G)
                     self.save_img_results(netG, fixed_noise, sent_emb, words_embs, mask, epoch, cnn_code,
-                                          region_features, imgs, name='average')
+                                          region_features, imgs, self.batch_size, name='average')
                     if not vis and epoch % cfg.TRAIN.VIS_INTERVAL == 0:
                         self.write_vis_summary(netG, fixed_noise, sent_emb, words_embs, mask, epoch, cnn_code,
-                                               region_features, self.writer)
+                                               region_features, self.batch_size, self.writer)
                         vis = True
                     load_params(netG, backup_para)
 
@@ -430,11 +430,11 @@ class condGANTrainer(object):
                 im.save(os.path.join(cfg.TEST.GENERATED_TEST_IMAGES, keys[j] + '_{}.png'.format(sent_idx[j])))
 
     def save_img_results(self, netG, noise, sent_emb, words_embs, mask, gen_iterations, cnn_code, region_features,
-                         real_imgs, name='current'):
+                         real_imgs, batch_size, name='current'):
         fake_imgs, attention_maps, _, _, _, _ = netG(noise, sent_emb, words_embs, mask,
                                                      cnn_code, region_features)
 
-        for k in range(4):
+        for k in range(batch_size):
             real_im = real_imgs[-1][k].data.cpu().numpy()
             real_im = (real_im + 1.0) * 127.5
             real_im = real_im.astype(np.uint8)
@@ -469,10 +469,11 @@ class condGANTrainer(object):
         torch.save(self.image_encoder.state_dict(), os.path.join(cfg.CHECKPOINT_DIR, cfg.TRAIN.CNN_ENCODER))
         '''
 
-    def write_vis_summary(self, netG, noise, sent_emb, words_embs, mask, epoch, cnn_code, region_features, writer):
+    def write_vis_summary(self, netG, noise, sent_emb, words_embs, mask, epoch, cnn_code, region_features, batch_size,
+                          writer):
         fake_imgs, attention_maps, _, _, _, _ = netG(noise, sent_emb, words_embs, mask, cnn_code, region_features)
-        img_batch = np.zeros((4, 3, 128, 128))
-        for k in range(4):
+        img_batch = np.zeros((batch_size, 3, 128, 128))
+        for k in range(batch_size):
             fake_im = fake_imgs[-1][k].data.cpu().numpy()
             fake_im = (fake_im + 1.0) / 2.0
             # fake_im = np.transpose(fake_im, (1, 2, 0))
