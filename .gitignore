@@ -135,3 +135,5 @@ final-project-deep-learning-20-pt/data/*
 .idea/*
 final-project-deep-learning-20-pt/.idea/*
 **/.DS_Store
+final-project-deep-learning-20-pt/sample/*
+final-project-deep-learning-20-pt/output/*

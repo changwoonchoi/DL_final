@@ -313,17 +313,50 @@ class condGANTrainer(object):
 
                 if gen_iterations % 100 == 0:
                     print(D_logs + '\n' + G_logs)
-
-                if gen_iterations % 1000 == 0:
-                    backup_para = copy_G_params(netG)
-                    load_params(netG, avg_param_G)
-                    self.save_img_results(netG, fixed_noise, sent_emb, words_embs, mask, epoch, cnn_code,
-                                          region_features, imgs, self.batch_size, name='average')
-                    if not vis and epoch % cfg.TRAIN.VIS_INTERVAL == 0:
-                        self.write_vis_summary(netG, fixed_noise, sent_emb, words_embs, mask, epoch, cnn_code,
-                                               region_features, self.batch_size, self.writer)
-                        vis = True
-                    load_params(netG, backup_para)
+                if self.batch_size == 16:
+                    if gen_iterations % 500 == 0:
+                        backup_para = copy_G_params(netG)
+                        load_params(netG, avg_param_G)
+                        self.save_img_results(netG, fixed_noise, sent_emb, words_embs, mask, epoch, cnn_code,
+                                              region_features, imgs, self.batch_size, name='average')
+                        if not vis and epoch % cfg.TRAIN.VIS_INTERVAL == 0:
+                            self.write_vis_summary(netG, fixed_noise, sent_emb, words_embs, mask, epoch, cnn_code,
+                                                   region_features, self.batch_size, self.writer)
+                            vis = True
+                        load_params(netG, backup_para)
+                elif self.batch_size == 8:
+                    if gen_iterations % 1000 == 0:
+                        backup_para = copy_G_params(netG)
+                        load_params(netG, avg_param_G)
+                        self.save_img_results(netG, fixed_noise, sent_emb, words_embs, mask, epoch, cnn_code,
+                                              region_features, imgs, self.batch_size, name='average')
+                        if not vis and epoch % cfg.TRAIN.VIS_INTERVAL == 0:
+                            self.write_vis_summary(netG, fixed_noise, sent_emb, words_embs, mask, epoch, cnn_code,
+                                                   region_features, self.batch_size, self.writer)
+                            vis = True
+                        load_params(netG, backup_para)
+                elif self.batch_size == 32:
+                    if gen_iterations % 200 == 0:
+                        backup_para = copy_G_params(netG)
+                        load_params(netG, avg_param_G)
+                        self.save_img_results(netG, fixed_noise, sent_emb, words_embs, mask, epoch, cnn_code,
+                                              region_features, imgs, self.batch_size, name='average')
+                        if not vis and epoch % cfg.TRAIN.VIS_INTERVAL == 0:
+                            self.write_vis_summary(netG, fixed_noise, sent_emb, words_embs, mask, epoch, cnn_code,
+                                                   region_features, self.batch_size, self.writer)
+                            vis = True
+                        load_params(netG, backup_para)
+                elif self.batch_size == 64:
+                    if gen_iterations % 100 == 0:
+                        backup_para = copy_G_params(netG)
+                        load_params(netG, avg_param_G)
+                        self.save_img_results(netG, fixed_noise, sent_emb, words_embs, mask, epoch, cnn_code,
+                                              region_features, imgs, self.batch_size, name='average')
+                        if not vis and epoch % cfg.TRAIN.VIS_INTERVAL == 0:
+                            self.write_vis_summary(netG, fixed_noise, sent_emb, words_embs, mask, epoch, cnn_code,
+                                                   region_features, self.batch_size, self.writer)
+                            vis = True
+                        load_params(netG, backup_para)
 
             end_t = time.time()
             print('[%d/%d][%d] Loss_D: %.2f Loss_G: %.2f Time: %.2fs'
