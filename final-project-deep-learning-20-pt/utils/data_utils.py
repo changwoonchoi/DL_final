@@ -10,7 +10,7 @@ from miscc.config import cfg
 
 from nltk.tokenize import RegexpTokenizer
 from collections import defaultdict
-
+import pdb
 import torch
 import torchvision.transforms as transforms
 import torchvision.transforms.functional as F
@@ -355,6 +355,14 @@ class CUBDataset():
                     'wrong_caps': wrong_caps, 'wrong_cap_len': wrong_cap_len, 'wrong_cls_id': wrong_cls_id,
                     'sent_ix': sent_ix}
         else:
+            '''
+            print('index: {}'.format(index))
+            print('cfg.TEXT.CAPTIONS_PER_IMAGE: {}'.format(cfg.TEXT.CAPTIONS_PER_IMAGE))
+            print('key: {}'.format(self.filenames[index // cfg.TEXT.CAPTIONS_PER_IMAGE]))
+            print('cls_id: {}'.format(self.class_id[index // cfg.TEXT.CAPTIONS_PER_IMAGE]))
+            print('sent_ix: {}'.format(index % cfg.TEXT.CAPTIONS_PER_IMAGE))
+            print('self.eval_mode: {}'.format(self.eval_mode))
+            '''
             key = self.filenames[index // cfg.TEXT.CAPTIONS_PER_IMAGE]  # 002.Laysan_Albatross/Laysan_Albatross_0002_1027
             cls_id = self.class_id[index // cfg.TEXT.CAPTIONS_PER_IMAGE]
             sent_ix = index % cfg.TEXT.CAPTIONS_PER_IMAGE  # caption index
@@ -363,19 +371,25 @@ class CUBDataset():
 
             if self.eval_mode:
                 img_name = os.path.join(self.current_dir, cfg.TEST.ORIG_TEST_IMAGES, '{}.png'.format(key))
-                imgs = get_imgs(img_name, self.imsize, None, self.transform, normalize=self.norm)
+                imgs = get_imgs(img_name, self.imsize, flip=False, bbox=None, transform=self.transform, normalize=self.norm)
             else:
                 img_name = '%s/images/%s.jpg' % (data_dir, key)
-                imgs = get_imgs(img_name, self.imsize, bbox, self.transform, normalize=self.norm)
+                imgs = get_imgs(img_name, self.imsize, flip=False, bbox=bbox, transform=self.transform, normalize=self.norm)
 
             caps, cap_len = self.get_caption(index)
+            # Dummy outputs
+            wrong_idx = random.randint(0, len(self.captions) - 1)
+            wrong_new_sent_ix = wrong_idx * self.embeddings_num + sent_ix
+            wrong_caps, wrong_cap_len = self.get_caption(wrong_new_sent_ix)
+            wrong_cls_id = self.class_id[wrong_idx]
 
-            data = {'img': imgs, 'caps': caps, 'cap_len': cap_len, 'cls_id': cls_id, 'key': key, 'sent_ix': sent_ix,
-                    'cap_ix': index}
+            data = {'img': imgs, 'caps': caps, 'cap_len': cap_len, 'cls_id': cls_id, 'key': key,
+                    'wrong_caps': wrong_caps, 'wrong_cap_len': wrong_cap_len, 'wrong_cls_id': wrong_cls_id,
+                    'sent_ix': sent_ix, 'cap_ix': index}
 
             if self.eval_mode:
                 gen_img_name = os.path.join(self.current_dir, cfg.TEST.GENERATED_TEST_IMAGES, '{}_{}.png'.format(key, sent_ix))
-                gen_imgs = get_imgs(gen_img_name, self.imsize, bbox=None, transform=self.transform, normalize=self.norm)
+                gen_imgs = get_imgs(gen_img_name, self.imsize, flip=False, bbox=None, transform=self.transform, normalize=self.norm)
                 data['gen_img'] = gen_imgs
 
         return data

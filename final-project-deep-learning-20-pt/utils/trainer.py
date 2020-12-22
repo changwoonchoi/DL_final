@@ -371,18 +371,32 @@ class condGANTrainer(object):
         self.save_model(netG, avg_param_G, netsD, self.max_epoch)
 
     def generate_data_for_eval(self):
-        # load the text encoder model to generate images for evaluation
+        # Load text encoder
         self.text_encoder = RNN_ENCODER(self.n_words, nhidden=cfg.TEXT.EMBEDDING_DIM)
-        # state_dict = torch.load(os.path.join(cfg.CHECKPOINT_DIR, cfg.TRAIN.RNN_ENCODER), map_location=lambda storage, loc: storage)
+        state_dict = torch.load(cfg.TRAIN.NET_E, map_location=lambda storage, loc: storage)
+        self.text_encoder.load_state_dict(state_dict)
+        self.text_encoder = self.text_encoder.cuda()
+        self.text_encoder.eval()
+
+        self.iamge_encoder = CNN_ENCODER(cfg.TEXT.EMBEDDING_DIM)
+        img_encoder_path = cfg.TRAIN.NET_E.replace('text_encoder', 'image_encoder')
+        state_dict = torch.load(img_encoder_path, map_location=lambda storage, loc:storage)
+        self.image_encoder.load_state_dict(state_dict)
+        self.image_encoder = self.image_encoder.cuda()
+        self.image_encoder.eval()
+
+        VGG = VGGNet()
+        VGG.cuda()
+        VGG.eval()
+        '''
+        self.text_encoder = RNN_ENCODER(self.n_words, nhidden=cfg.TEXT.EMBEDDING_DIM)
         state_dict = torch.load(cfg.TRAIN.NET_E, map_location=lambda storage, loc: storage)
         self.text_encoder.load_state_dict(state_dict)
         self.text_encoder = self.text_encoder.cuda()
         for p in self.text_encoder.parameters():
             p.requires_grad = False
-        # print('Load text encoder from:', cfg.TRAIN.RNN_ENCODER)
         print('Load text encoder from:', cfg.TRAIN.NET_E)
         self.text_encoder.eval()
-
         self.image_encoder = CNN_ENCODER(cfg.TEXT.EMBEDDING_DIM)
         img_encoder_path = cfg.TRAIN.NET_E.replace('text_encoder', 'image_encoder')
         state_dict = torch.load(img_encoder_path, map_location=lambda storage, loc: storage)
@@ -390,39 +404,32 @@ class condGANTrainer(object):
         print('Load image encoder from:', img_encoder_path)
         self.image_encoder = self.image_encoder.cuda()
         self.image_encoder.eval()
-
         VGG = VGGNet()
         VGG.cuda()
         VGG.eval()
-
+        '''
         #################################################
         # TODO
         # this part can be different, depending on which algorithm is used
         #################################################
 
-        # load the generator model to generate images for evaluation
+        # Load Generator
         self.netG = GENERATOR()
+
         self.netG.apply(weights_init)
-        self.netG.cuda()
-        self.netG.eval()
-        state_dict = torch.load(os.path.join(cfg.CHECKPOINT_DIR, cfg.TRAIN.GENERATOR),
-                                map_location=lambda storage, loc: storage)
+        state_dict = torch.load(os.path.join(cfg.CHECKPOINT_DIR, cfg.TRAIN.GENERATOR), map_location=lambda storage, loc: storage)
         self.netG.load_state_dict(state_dict)
         for p in self.netG.parameters():
             p.requires_grad = False
         print('Load generator from:', cfg.TRAIN.GENERATOR)
-        self.netG.eval()
 
         noise = Variable(torch.FloatTensor(self.batch_size, cfg.GAN.Z_DIM))
-
-        if cfg.CUDA:
-            self.text_encoder = self.text_encoder.cuda()
-            self.netG = self.netG.cuda()
-            noise = noise.cuda()
+        self.netG = self.netG.cuda()
+        self.netG.eval()
+        noise = noise.cuda()
 
         for step, data in enumerate(self.test_dataloader, 0):
-            imgs, captions, cap_lens, class_ids, keys, sent_idx = self.prepare_data(data)
-
+            imgs, captions, cap_lens, class_ids, keys, _, _, _, sent_idx = self.prepare_data(data)
             #################################################
             # TODO
             # word embedding might be returned as well
@@ -430,7 +437,6 @@ class condGANTrainer(object):
             # sent_emb = self.text_encoder(captions, cap_lens, hidden)
             # sent_emb = sent_emb.detach()
             #################################################
-
             noise.data.normal_(0, 1)
 
             #################################################
@@ -438,7 +444,8 @@ class condGANTrainer(object):
             # this part can be different, depending on which algorithm is used
             # the main purpose is generating synthetic images using caption embedding and latent vector (noise)
             # fake_img = self.netG(noise, sent_emb, img_emb, ...)
-            fake_imgs = None
+
+            fake_imgs, _, _, _, _, _ = self.netG(noise, sent_emb, words_emb, mask, cnn_code, region_features)
             #################################################
 
             # Save original img

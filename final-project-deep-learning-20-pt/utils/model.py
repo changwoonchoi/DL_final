@@ -25,7 +25,7 @@ from utils.attention import ChannelAttention as CHANNEL_ATT
 from utils.attention import DCMChannelAttention as DCM_CHANNEL_ATT
 
 #######################################################################################################
-# DO NOT CHANGE 
+# DO NOT CHANGE
 class RNN_ENCODER(nn.Module):
 #######################################################################################################
     def __init__(self, ntoken, ninput=300, drop_prob=0.5, nhidden=128, nlayers=1, bidirectional=True):
@@ -90,7 +90,7 @@ class RNN_ENCODER(nn.Module):
         return words_emb, sent_emb
 
 #######################################################################################################
-# DO NOT CHANGE 
+# DO NOT CHANGE
 class CNN_ENCODER(nn.Module):
 #######################################################################################################
     def __init__(self, nef):
@@ -293,7 +293,7 @@ class GET_IMAGE_G(nn.Module):
         return out_img
 
 #######################################################################################################
-# DO NOT CHANGE  
+# DO NOT CHANGE
 class GENERATOR(nn.Module):
 #######################################################################################################
     def __init__(self):
@@ -357,7 +357,7 @@ class GENERATOR(nn.Module):
 
 
 #######################################################################################################
-# DO NOT CHANGE 
+# DO NOT CHANGE
 class DISCRIMINATOR(nn.Module):
 #######################################################################################################
     def __init__(self, res=64, b_jcu=True):
