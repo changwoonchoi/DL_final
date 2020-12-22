@@ -130,6 +130,9 @@ class condGANTrainer(object):
 
         return [real_imgs, captions, sorted_cap_lens, class_ids, keys, wrong_caps, w_sorted_cap_lens, wrong_cls_id, sentence_idx]
 
+    def prepare_test_data(self, data):
+        raise NotImplementedError
+
     def build_model(self):
         if cfg.TRAIN.NET_E == '':
             print('pretrained encoder not loaded')
@@ -429,7 +432,7 @@ class condGANTrainer(object):
         noise = noise.cuda()
 
         for step, data in enumerate(self.test_dataloader, 0):
-            imgs, captions, cap_lens, class_ids, keys, _, _, _, sent_idx = self.prepare_data(data)
+            imgs, captions, cap_lens, class_ids, keys, _, _, _, sent_idx = self.prepare_test_data(data)
             #################################################
             # TODO
             # word embedding might be returned as well
