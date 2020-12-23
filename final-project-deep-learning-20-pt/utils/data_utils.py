@@ -293,6 +293,9 @@ class CUBDataset():
         - x_len: scalar, length of each tokenized caption
         """
         # a list of indices for a sentence
+        # print(len(self.captions_ids))
+        # print(self.captions_ids)
+        # print(sent_ix)
         sent_caption = np.asarray(self.captions_ids[sent_ix]).astype('int64')
         if (sent_caption == 0).sum() > 0:
             print('ERROR: do not need END (0) token', sent_caption)
@@ -316,12 +319,14 @@ class CUBDataset():
         mis_match_captions = torch.zeros(cfg.WRONG_CAPTION, cfg.TEXT.WORDS_NUM)
         mis_match_captions_len = torch.zeros(cfg.WRONG_CAPTION)
         i = 0
+        # print(len(self.filenames))
         while len(mis_match_captions_t) < cfg.WRONG_CAPTION:
             idx = random.randint(0, len(self.filenames) - 1)
             if img_cls_id == self.class_id[idx] or cap_cls_id == self.class_id[idx]:
                 continue
-            sent_ix = random.randint(0, cfg.TEXT.CAPTIONS_PER_IMAGE)
+            sent_ix = random.randint(0, cfg.TEXT.CAPTIONS_PER_IMAGE - 1)
             new_sent_ix = idx * cfg.TEXT.CAPTIONS_PER_IMAGE + sent_ix
+            # print(new_sent_ix)
             caps_t, cap_len_t = self.get_caption(new_sent_ix)
             mis_match_captions_t.append(torch.from_numpy(caps_t).squeeze())
             mis_match_captions_len[i] = cap_len_t
@@ -375,17 +380,22 @@ class CUBDataset():
             else:
                 img_name = '%s/images/%s.jpg' % (data_dir, key)
                 imgs = get_imgs(img_name, self.imsize, flip=False, bbox=bbox, transform=self.transform, normalize=self.norm)
-
             caps, cap_len = self.get_caption(index)
+            '''
+            print(caps)
+            print(cap_len)
+            new_caps = torch.zeros([caps.shape[0], cap_len[0]]).type(torch.LongTensor)
+            new_caps = caps[:, :new_caps.shape[1]]
+            '''
             # Dummy outputs
+            '''
             wrong_idx = random.randint(0, len(self.captions) - 1)
             wrong_new_sent_ix = wrong_idx * self.embeddings_num + sent_ix
             wrong_caps, wrong_cap_len = self.get_caption(wrong_new_sent_ix)
             wrong_cls_id = self.class_id[wrong_idx]
-
-            data = {'img': imgs, 'caps': caps, 'cap_len': cap_len, 'cls_id': cls_id, 'key': key,
-                    'wrong_caps': wrong_caps, 'wrong_cap_len': wrong_cap_len, 'wrong_cls_id': wrong_cls_id,
-                    'sent_ix': sent_ix, 'cap_ix': index}
+            '''
+            data = {'img': imgs, 'caps': caps, 'cap_len': cap_len, 'cls_id': cls_id, 'key': key, 'sent_ix': sent_ix,
+                    'cap_ix': index}
 
             if self.eval_mode:
                 gen_img_name = os.path.join(self.current_dir, cfg.TEST.GENERATED_TEST_IMAGES, '{}_{}.png'.format(key, sent_ix))

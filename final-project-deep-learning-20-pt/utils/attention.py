@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-
+import pdb
 
 def conv1x1(in_planes, out_planes):
     "1x1 convolution with padding"
@@ -66,6 +66,7 @@ class SpatialAttentionGeneral(nn.Module):
             input: batch x idf x ih x iw (queryL=ihxiw)
             context: batch x cdf x sourceL
         """
+        # pdb.set_trace()
         ih, iw = input.size(2), input.size(3)
         queryL = ih * iw
         batch_size, sourceL = context.size(0), context.size(2)

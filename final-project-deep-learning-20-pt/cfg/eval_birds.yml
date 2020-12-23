@@ -18,14 +18,14 @@ CHECKPOINT_DIR: './output/checkpoint'
 #################################################
 
 
-GPU_ID: '1'
+GPU_ID: '0'
 WORKERS: 1
-B_VALIDATION: False
+B_VALIDATION: True
 
 TREE:
     BRANCH_NUM: 2
 
-BATCH_SIZE: 8
+BATCH_SIZE: 10
 
 #################################################
 # DO NOT CHANGE
@@ -35,7 +35,7 @@ TRAIN:
     # CNN_ENCODER: 'image_encoder.pth'
     # RNN_ENCODER: 'text_encoder.pth'
     NET_E: 'DAMSMencoders/bird/text_encoder.pth'
-    GENERATOR: 'netG_epoch_200.pth'
+    GENERATOR: 'netG_epoch_600.pth'
     
     MAX_EPOCH: 600
     SNAPSHOT_INTERVAL: 50

@@ -22,7 +22,7 @@ from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 from miscc.config import cfg
 from utils.attention import SpatialAttentionGeneral as SPATIAL_ATT
 from utils.attention import ChannelAttention as CHANNEL_ATT
-from utils.attention import DCMChannelAttention as DCM_CHANNEL_ATT
+import pdb
 
 #######################################################################################################
 # DO NOT CHANGE
@@ -251,7 +251,7 @@ class NEXT_STAGE_G(nn.Module):
 
     def _make_layer(self, block, channel_num):
         layers = []
-        for i  in range(cfg.GAN.R_NUM):
+        for i in range(cfg.GAN.R_NUM):
             layers.append(block(channel_num))
         return nn.Sequential(*layers)
 
@@ -264,6 +264,7 @@ class NEXT_STAGE_G(nn.Module):
         self.SAIN = ACM(ngf * 3)
 
     def forward(self, h_code, c_code, word_embs, mask, img):
+        # pdb.set_trace()
         self.att.applyMask(mask)
         c_code, att = self.att(h_code, word_embs)
         c_code_channel, att_channel = self.channel_att(c_code, word_embs, h_code.size(2), h_code.size(3))

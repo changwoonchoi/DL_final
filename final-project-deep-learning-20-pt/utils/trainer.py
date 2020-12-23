@@ -131,7 +131,36 @@ class condGANTrainer(object):
         return [real_imgs, captions, sorted_cap_lens, class_ids, keys, wrong_caps, w_sorted_cap_lens, wrong_cls_id, sentence_idx]
 
     def prepare_test_data(self, data):
-        raise NotImplementedError
+        imgs = data['img']
+        captions = data['caps']
+        captions_lens = data['cap_len']
+        class_ids = data['cls_id']
+        keys = data['key']
+        sentence_idx = data['sent_ix']
+
+        # sort data by the length in a decreasing order
+        # the reason of sorting data can be found in https://simonjisu.github.io/nlp/2018/07/05/packedsequence.html
+        sorted_cap_lens, sorted_cap_indices = torch.sort(captions_lens, 0, True)
+        real_imgs = []
+        for i in range(len(imgs)):
+            imgs[i] = imgs[i][sorted_cap_indices]
+            if cfg.CUDA:
+                real_imgs.append(Variable(imgs[i]).cuda())
+            else:
+                real_imgs.append(Variable(imgs[i]))
+
+        captions = captions[sorted_cap_indices].squeeze()
+        class_ids = class_ids[sorted_cap_indices].numpy()
+        keys = [keys[i] for i in sorted_cap_indices.numpy()]
+        sentence_idx = sentence_idx[sorted_cap_indices].numpy()
+
+        if cfg.CUDA:
+            captions = Variable(captions).cuda()
+            sorted_cap_lens = Variable(sorted_cap_lens).cuda()
+        else:
+            captions = Variable(captions)
+            sorted_cap_lens = Variable(sorted_cap_lens)
+        return [real_imgs, captions, sorted_cap_lens, class_ids, keys, sentence_idx]
 
     def build_model(self):
         if cfg.TRAIN.NET_E == '':
@@ -328,7 +357,7 @@ class condGANTrainer(object):
                             vis = True
                         load_params(netG, backup_para)
                 elif self.batch_size == 8:
-                    if gen_iterations % 1000 == 0:
+                    if gen_iterations % 100 == 0:
                         backup_para = copy_G_params(netG)
                         load_params(netG, avg_param_G)
                         self.save_img_results(netG, fixed_noise, sent_emb, words_embs, mask, epoch, cnn_code,
@@ -381,16 +410,13 @@ class condGANTrainer(object):
         self.text_encoder = self.text_encoder.cuda()
         self.text_encoder.eval()
 
-        self.iamge_encoder = CNN_ENCODER(cfg.TEXT.EMBEDDING_DIM)
+        self.image_encoder = CNN_ENCODER(cfg.TEXT.EMBEDDING_DIM)
         img_encoder_path = cfg.TRAIN.NET_E.replace('text_encoder', 'image_encoder')
         state_dict = torch.load(img_encoder_path, map_location=lambda storage, loc:storage)
         self.image_encoder.load_state_dict(state_dict)
         self.image_encoder = self.image_encoder.cuda()
         self.image_encoder.eval()
 
-        VGG = VGGNet()
-        VGG.cuda()
-        VGG.eval()
         '''
         self.text_encoder = RNN_ENCODER(self.n_words, nhidden=cfg.TEXT.EMBEDDING_DIM)
         state_dict = torch.load(cfg.TRAIN.NET_E, map_location=lambda storage, loc: storage)
@@ -425,14 +451,14 @@ class condGANTrainer(object):
         for p in self.netG.parameters():
             p.requires_grad = False
         print('Load generator from:', cfg.TRAIN.GENERATOR)
-
-        noise = Variable(torch.FloatTensor(self.batch_size, cfg.GAN.Z_DIM))
         self.netG = self.netG.cuda()
         self.netG.eval()
-        noise = noise.cuda()
 
         for step, data in enumerate(self.test_dataloader, 0):
-            imgs, captions, cap_lens, class_ids, keys, _, _, _, sent_idx = self.prepare_test_data(data)
+            # return [real_imgs, captions, sorted_cap_lens, class_ids, keys, sentence_idx]
+
+            imgs, captions, cap_lens, class_ids, keys, sent_idx = self.prepare_test_data(data)
+            new_captions = captions[:, :cap_lens[0]]
             #################################################
             # TODO
             # word embedding might be returned as well
@@ -440,17 +466,25 @@ class condGANTrainer(object):
             # sent_emb = self.text_encoder(captions, cap_lens, hidden)
             # sent_emb = sent_emb.detach()
             #################################################
+            noise = Variable(torch.FloatTensor(self.batch_size, cfg.GAN.Z_DIM))
+            noise = noise.cuda()
             noise.data.normal_(0, 1)
 
+            # 1) extract text and image embeddings
+            hidden = self.text_encoder.init_hidden(self.batch_size)
+            words_embs, sent_emb = self.text_encoder(new_captions, cap_lens, hidden)
+            region_features, cnn_code = self.image_encoder(imgs[cfg.TREE.BRANCH_NUM - 1])
+            mask = (new_captions == 0)
+
+            # 2) modify real images
+            fake_imgs, _, _, _, _, _ = self.netG(noise, sent_emb, words_embs, mask, cnn_code, region_features)
+            real_img = imgs[1]
             #################################################
             # TODO
             # this part can be different, depending on which algorithm is used
             # the main purpose is generating synthetic images using caption embedding and latent vector (noise)
             # fake_img = self.netG(noise, sent_emb, img_emb, ...)
-
-            fake_imgs, _, _, _, _, _ = self.netG(noise, sent_emb, words_emb, mask, cnn_code, region_features)
             #################################################
-
             # Save original img
             for j in range(self.batch_size):
                 if not os.path.exists(os.path.join(cfg.TEST.GENERATED_TEST_IMAGES, keys[j].split('/')[0])):
@@ -458,15 +492,16 @@ class condGANTrainer(object):
                 if not os.path.exists(os.path.join(cfg.TEST.ORIG_TEST_IMAGES, keys[j].split('/')[0])):
                     os.mkdir(os.path.join(cfg.TEST.ORIG_TEST_IMAGES, keys[j].split('/')[0]))
                 if not os.path.exists(os.path.join(cfg.TEST.ORIG_TEST_IMAGES, keys[j] + '.png')):
-                    im = imgs[j].data.cpu().numpy()
+                    # im = imgs[j].data.cpu().numpy()
+                    # pdb.set_trace()
+                    im = real_img[j].data.cpu().numpy()
                     im = (im + 1.0) * 127.5
                     im = im.astype(np.uint8)
                     im = np.transpose(im, (1, 2, 0))
                     im = Image.fromarray(im)
                     print(os.path.join(cfg.TEST.ORIG_TEST_IMAGES, keys[j] + '.png'))
                     im.save(os.path.join(cfg.TEST.ORIG_TEST_IMAGES, keys[j] + '.png'))
-
-                im = fake_imgs[j].data.cpu().numpy()
+                im = fake_imgs[-1][j].data.cpu().numpy()
                 im = (im + 1.0) * 127.5
                 im = im.astype(np.uint8)
                 im = np.transpose(im, (1, 2, 0))
@@ -476,6 +511,7 @@ class condGANTrainer(object):
 
     def save_img_results(self, netG, noise, sent_emb, words_embs, mask, gen_iterations, cnn_code, region_features,
                          real_imgs, batch_size, name='current'):
+        # pdb.set_trace()
         fake_imgs, attention_maps, _, _, _, _ = netG(noise, sent_emb, words_embs, mask,
                                                      cnn_code, region_features)
 
